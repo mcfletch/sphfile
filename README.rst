@@ -10,7 +10,7 @@ Numpy-based NIST SPH audio-file reader
 Usage
 -----
 
-.. code::python
+.. code:: python
 
     from sphfile import SPHFile
     sph =SPHFile( '/var/datasets/TEDLIUM_release2/test/sph/JamesCameron_2010.sph' )
