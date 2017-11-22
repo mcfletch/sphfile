@@ -66,12 +66,13 @@ class SPHFile( object ):
             if self._format['sample_byte_format'] == '10':
                 # deal with big-endian data-files as wav is going to expect little-endian
                 self._content = self._content.byteswap()
-            
+        
     _format = _content = None
     @property
     def format( self ):
         if self._format is None:
-            self.open()
+            with open( self.filename, 'rb' ) as fh:
+                self._format = parse_sph_header( fh )
         return self._format 
     @property
     def content( self ):
