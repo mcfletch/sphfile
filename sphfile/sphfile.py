@@ -49,20 +49,24 @@ class SPHFile( object ):
     """SPH data-file that can is read into RAM on access"""
     def __init__( self, filename ):
         self.filename = filename 
+        self._rawbytes = None
     def open( self ):
         with open( self.filename, 'rb' ) as fh:
             self._format = format = parse_sph_header( fh )
             content = fh.read()
             if format['sample_n_bytes'] == 1:
-                format = numpy.uint8
+                np_format = numpy.uint8
             elif format['sample_n_bytes'] == 2:
-                format = numpy.uint16
+                np_format = numpy.uint16
             elif format['sample_n_bytes'] == 4:
-                format = numpy.uint32
+                np_format = numpy.uint32
             else:
                 raise RuntimeError( "Unrecognized byte count: %s", format['sample_n_bytes'] )
+            remainder = len(content)%format['sample_n_bytes']
+            if remainder:
+                content = content[:-remainder]
             self._rawbytes = content
-            self._content = numpy.fromstring(content,dtype=format)
+            self._content = numpy.fromstring(content,dtype=np_format)
             if self._format['sample_byte_format'] == '10':
                 # deal with big-endian data-files as wav is going to expect little-endian
                 self._content = self._content.byteswap()
