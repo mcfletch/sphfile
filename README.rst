@@ -48,5 +48,5 @@ Authors
 History
 -------
 
-1.0.1 -- Fix to allow for files that have non-sample-multiple bytes in the data section
-1.0.0 -- Initial release
+* 1.0.1 -- Fix to allow for files that have non-sample-multiple bytes in the data section
+* 1.0.0 -- Initial release
