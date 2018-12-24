@@ -57,9 +57,9 @@ class SPHFile( object ):
             if format['sample_n_bytes'] == 1:
                 np_format = numpy.uint8
             elif format['sample_n_bytes'] == 2:
-                np_format = numpy.uint16
+                np_format = numpy.int16
             elif format['sample_n_bytes'] == 4:
-                np_format = numpy.uint32
+                np_format = numpy.int32
             else:
                 raise RuntimeError( "Unrecognized byte count: %s", format['sample_n_bytes'] )
             remainder = len(content)%format['sample_n_bytes']
