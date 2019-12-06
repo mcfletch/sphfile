@@ -15,6 +15,14 @@ such as `vox` or `gstreamer`. It just loads the data into a
 numpy array and then lets you dump it back out to wave 
 files.
 
+Note that the library does not support files with
+`embedded-shorten-*` encodings, only the base ulaw
+encoding. You will need to convert such files with::
+
+    sph2pipe file.sph file-raw.sph
+
+to allow them to be loaded.
+
 Usage
 -----
 
