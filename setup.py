@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="sphfile",
-    version="1.0.1",
+    version="1.0.2",
     url="https://github.com/mcfletch/sphfile",
 
     author="Mike C. Fletcher",
