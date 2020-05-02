@@ -42,7 +42,7 @@ Requirements
 
 * numpy
 
-Licence
+License
 -------
 
     MIT License (c) 2017 Mike C. Fletcher
@@ -56,5 +56,7 @@ Authors
 History
 -------
 
+* 1.0.3 -- Allow for other header keys during header format parsing
+* 1.0.2 -- Use signed integers for 2 and 4-byte sample_n_bytes
 * 1.0.1 -- Fix to allow for files that have non-sample-multiple bytes in the data section
 * 1.0.0 -- Initial release
