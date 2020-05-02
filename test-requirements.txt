@@ -1,0 +1,4 @@
+pytest
+black
+-r requirements.txt
+

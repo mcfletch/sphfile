@@ -2,9 +2,10 @@
 
 Uses the standard-library's wave module to write the wav files
 """
-import numpy
+import numpy, re
+NAME_MATCH = re.compile(r'^[a-zA-Z][a-zA-Z0-9]*([_][a-zA-Z][a-zA-Z0-9]*)*$')
 
-def parse_sph_header( fh ):
+def parse_sph_header(fh):
     """Read the file-format header for an sph file
     
     The SPH header-file is exactly 1024 bytes at the head of the file,
@@ -25,34 +26,43 @@ def parse_sph_header( fh ):
         }
     """
     file_format = {
-        'sample_rate':8000, 
-        'channel_count':1, 
-        'sample_byte_format': '01', # little-endian
-        'sample_n_bytes':2, 
-        'sample_sig_bits': 16, 
-        'sample_coding': 'pcm', 
+        'sample_rate': 8000,
+        'channel_count': 1,
+        'sample_byte_format': '01',  # little-endian
+        'sample_n_bytes': 2,
+        'sample_sig_bits': 16,
+        'sample_coding': 'pcm',
     }
     end = b'end_head'
     for line in fh.read(1024).splitlines():
         if line.startswith(end):
-            break 
+            break
         line = line.decode('latin-1')
-        for key in file_format.keys():
-            if line.startswith(key):
-                _, format, value = line.split(None, 3)
-                if format == '-i':
-                    value = int(value, 10)
-                file_format[key] = value 
+        try:
+            key, format, value = line.split(None, 3)
+        except (ValueError, KeyError, TypeError) as err:
+            pass
+        else:
+            key, format, value = line.split(None, 3)
+            if not NAME_MATCH.match(key):
+                # we'll ignore invalid names for now...
+                continue
+            if format == '-i':
+                value = int(value, 10)
+            file_format[key] = value
     return file_format
 
-class SPHFile( object ):
+
+class SPHFile(object):
     """SPH data-file that can is read into RAM on access"""
-    def __init__( self, filename ):
-        self.filename = filename 
+
+    def __init__(self, filename):
+        self.filename = filename
         self._rawbytes = None
-    def open( self ):
-        with open( self.filename, 'rb' ) as fh:
-            self._format = format = parse_sph_header( fh )
+
+    def open(self):
+        with open(self.filename, 'rb') as fh:
+            self._format = format = parse_sph_header(fh)
             content = fh.read()
             if format['sample_n_bytes'] == 1:
                 np_format = numpy.uint8
@@ -61,62 +71,94 @@ class SPHFile( object ):
             elif format['sample_n_bytes'] == 4:
                 np_format = numpy.int32
             else:
-                raise RuntimeError( "Unrecognized byte count: %s", format['sample_n_bytes'] )
-            remainder = len(content)%format['sample_n_bytes']
+                raise RuntimeError(
+                    "Unrecognized byte count: %s", format['sample_n_bytes']
+                )
+            remainder = len(content) % format['sample_n_bytes']
             if remainder:
                 content = content[:-remainder]
             self._rawbytes = content
-            self._content = numpy.fromstring(content,dtype=np_format)
+            self._content = numpy.frombuffer(content, dtype=np_format)
             if self._format['sample_byte_format'] == '10':
                 # deal with big-endian data-files as wav is going to expect little-endian
                 self._content = self._content.byteswap()
-        
+
     _format = _content = None
+
     @property
-    def format( self ):
+    def format(self):
         if self._format is None:
-            with open( self.filename, 'rb' ) as fh:
-                self._format = parse_sph_header( fh )
-        return self._format 
+            with open(self.filename, 'rb') as fh:
+                self._format = parse_sph_header(fh)
+        return self._format
+
     @property
-    def content( self ):
+    def content(self):
         if self._content is None:
             self.open()
-        return self._content 
-        
+        return self._content
+
     def seconds_to_offset(self, seconds):
         """Calculate buffer offset in seconds (assumes interleaved channels)"""
         return int(seconds * self.format['sample_rate'] * self.format['channel_count'])
-    def time_range(self, start=0, stop=None ):
+
+    def time_range(self, start=0, stop=None):
         if stop is not None:
-            return self.content[ self.seconds_to_offset(start):self.seconds_to_offset(stop) ]
+            return self.content[
+                self.seconds_to_offset(start) : self.seconds_to_offset(stop)
+            ]
         else:
-            return self.content[ self.seconds_to_offset(start): ]
-    
-    def write_wav( self, filename, start=None, stop=None  ):
+            return self.content[self.seconds_to_offset(start) :]
+
+    def write_wav(self, filename, start=None, stop=None):
         """Write our audio buffer to given filename as a wave-file"""
         import wave
-        with wave.open(filename,'wb') as fh:
+
+        with wave.open(filename, 'wb') as fh:
             params = (
-                self.format['channel_count'], 
-                self.format['sample_n_bytes'], 
+                self.format['channel_count'],
+                self.format['sample_n_bytes'],
                 self.format['sample_rate'],
-                0, 
-                'NONE', 'NONE'
+                0,
+                'NONE',
+                'NONE',
             )
             fh.setparams(params)
             if start is not None or stop is not None:
-                data = self.time_range( start, stop )
+                data = self.time_range(start, stop)
             else:
                 data = self.content
-            fh.writeframes( data.tostring() )
+            fh.writeframes(data.tostring())
         return filename
-    
-def test():
-    sph =SPHFile( '/var/datasets/TEDLIUM_release2/test/sph/JamesCameron_2010.sph' )
-    sph.write_wav( 'test.wav', 111.29, 123.57 )
-    print("test.wav should say: i had to create these images in my head you know we all did as kids having to read a book and through the author 's description put something on on the screen the movie screen in our heads and so my")
 
-if __name__ == "__main__":
-    test()
-    
+    def write_sph(self, filename, start=None, stop=None,extra_headers=None):
+        """Write out an SPH data-file with (a subset) of our data"""
+        headers = numpy.zeros(1024,dtype='c')
+        header_set = [
+            'NIST_1A',
+            '   1024',
+        ]
+        if start is not None or stop is not None:
+            data = self.time_range(start, stop)
+        else:
+            data = self.content
+        params = self.format.copy()
+        params['sample_count'] = len(data)
+        if extra_headers:
+            params.update(extra_headers)
+        for key,value in sorted(params.items()):
+            if isinstance(value,int):
+                typ = '-i'
+            else:
+                typ = '-s%s'%(len(value),)
+            header_set.append('%s %s %s'%(
+                key,typ,value,
+            ))
+        header_set.append('end_head')
+        header_set.append('')
+        headers_encoded = ('\n'.join(header_set)).encode('ascii',errors='ignore')
+        headers[len(headers_encoded):] = headers_encoded
+        with open(filename,'wb') as fh:
+            fh.write(headers)
+            fh.write(data)
+        

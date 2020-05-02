@@ -4,17 +4,12 @@ setuptools.setup(
     name="sphfile",
     version="1.0.2",
     url="https://github.com/mcfletch/sphfile",
-
     author="Mike C. Fletcher",
     author_email="mcfletch@vrplumber.com",
-
     description="Numpy-based NIST SPH audio-file reader",
     long_description=open('README.rst').read(),
-
     packages=setuptools.find_packages(),
-
     install_requires=[],
-
     classifiers=[
         'Programming Language :: Python',
         'Programming Language :: Python :: 2',
